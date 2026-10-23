@@ -12,7 +12,6 @@ interface Props {
   onLogout?: () => void;
 }
 
-// قائمة الدول - الدول العربية أولًا، ثم باقي الدول أبجديًا
 const COUNTRY_OPTIONS: { group: string; options: string[] }[] = [
   {
     group: 'الدول العربية',
@@ -35,7 +34,6 @@ const COUNTRY_OPTIONS: { group: string; options: string[] }[] = [
   },
 ];
 
-// قائمة شاملة بأبرز المجالات والتخصصات ليختار الطالب من بينها بدل الكتابة الحرة
 const GOAL_OPTIONS: { group: string; options: string[] }[] = [
   {
     group: 'البرمجة وتطوير الويب',
@@ -115,7 +113,7 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
-  const [fieldError, setFieldError] = useState<string>(''); // اسم الحقل اللي فيه الخطأ حاليًا
+  const [fieldError, setFieldError] = useState<string>('');
   const [success, setSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -130,7 +128,6 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
 
   if (!isOpen) return null;
 
-  // يعرض رسالة الخطأ، يحدد اسم الحقل المسؤول عنه (للتلوين)، ويعمل focus عليه مباشرة
   const fail = (message: string, field: string, ref: React.RefObject<HTMLInputElement | HTMLSelectElement>) => {
     setError(message);
     setFieldError(field);
@@ -139,10 +136,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
   };
 
   const fieldClass = (field: string) =>
-    `mt-1.5 w-full rounded-xl border p-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-all bg-[#131b2e] ${
+    `mt-1.5 w-full rounded-xl border bg-white p-3 text-sm text-ink placeholder:text-ink/40 focus:outline-none transition-all ${
       fieldError === field
-        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/50'
-        : 'border-slate-700/80 focus:border-emerald-500'
+        ? 'border-rose-500 ring-2 ring-rose-200'
+        : 'border-aqua-mid focus:border-aqua-dark focus:ring-2 focus:ring-aqua/40'
     }`;
 
   const submit = async (event: React.FormEvent) => {
@@ -155,7 +152,6 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
     const cleanPhone = phone.trim();
     const cleanCountry = country.trim();
 
-    // الاسم: كلمتين على الأقل، حروف عربية أو إنجليزية بس (بدون أرقام أو رموز)
     const nameWords = cleanName.split(/\s+/).filter(Boolean);
     if (cleanName.length < 3 || nameWords.length < 2) {
       return fail('اكتب الاسم الكامل (اسم أول واسم تاني على الأقل).', 'fullName', fullNameRef);
@@ -164,12 +160,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
       return fail('الاسم يجب أن يحتوي على حروف فقط، بدون أرقام أو رموز.', 'fullName', fullNameRef);
     }
 
-    // البريد الإلكتروني: فورمات صحيح فعليًا
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
       return fail('اكتب بريدًا إلكترونيًا صحيحًا (مثال: name@example.com).', 'email', emailRef);
     }
 
-    // الهاتف: أرقام بس، وطول منطقي (لو مصر: لازم يبدأ بـ 01 و11 رقم بالظبط)
     const phoneDigitsOnly = cleanPhone.replace(/\s|-/g, '');
     if (!/^[0-9+]+$/.test(phoneDigitsOnly) || phoneDigitsOnly.length < 8) {
       return fail('اكتب رقم هاتف صحيح (أرقام فقط).', 'phone', phoneRef);
@@ -178,12 +172,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
       return fail('رقم الهاتف المصري يجب أن يكون 11 رقمًا ويبدأ بـ 010 أو 011 أو 012 أو 015.', 'phone', phoneRef);
     }
 
-    // الدولة: مطلوبة
     if (!cleanCountry) {
       return fail('اختر الدولة.', 'country', countryRef);
     }
 
-    // الهدف/المجال
     if (!goal) {
       return fail('اختر هدفك أو مجالك.', 'goal', goalRef);
     }
@@ -192,7 +184,6 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
       return fail('اكتب اسم الكورس أو المجال اللي تقصده بوضوح.', 'customGoal', customGoalRef);
     }
 
-    // كلمة المرور
     if (password.length < 6) {
       return fail('كلمة المرور يجب أن تكون 6 أحرف على الأقل.', 'password', passwordRef);
     }
@@ -206,7 +197,6 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
     const finalGoal = goal === OTHER_GOAL_VALUE ? cleanCustomGoal : goal;
     setSaving(true);
 
-    // نحتفظ بالمستخدم اللي هيتعمل في Firebase Auth عشان نقدر نحذفه لو فشل حفظ البروفايل
     let createdUser: import('firebase/auth').User | null = null;
 
     try {
@@ -226,8 +216,6 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
     } catch (err: any) {
       console.error('Student registration error:', err);
 
-      // لو الحساب اتعمل في Auth بنجاح لكن حفظ البروفايل فشل، نحذف الحساب
-      // عشان منسيبش حساب "يتيم" من غير بيانات، ويقدر الطالب يحاول يسجل تاني بنفس الإيميل
       if (createdUser) {
         try {
           await deleteUser(createdUser);
@@ -245,14 +233,16 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
     }
   };
 
+  const overlay = 'fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-gradient-to-br from-[#E3F1F3] via-white to-[#C6E2E6] p-4 font-arabic';
+
   if (success) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 font-arabic" dir="rtl">
-        <div className="w-full max-w-md rounded-3xl bg-[#0d1322] border border-slate-800 p-7 text-center shadow-2xl text-white">
-          <CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-500" />
-          <h2 className="text-xl font-black text-white">تم إنشاء الحساب</h2>
-          <p className="mt-2 text-sm text-slate-400">يمكنك الآن استخدام البريد وكلمة المرور لتسجيل الدخول.</p>
-          <button type="button" onClick={onClose} className="mt-6 w-full rounded-xl bg-emerald-500 py-3 font-black text-slate-950 cursor-pointer">
+      <div className={overlay} dir="rtl">
+        <div className="w-full max-w-md rounded-3xl border border-aqua-mid bg-white p-7 text-center text-ink shadow-xl">
+          <CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-aqua-dark" />
+          <h2 className="text-xl font-black">تم إنشاء الحساب</h2>
+          <p className="mt-2 text-sm text-ink/70">يمكنك الآن استخدام البريد وكلمة المرور لتسجيل الدخول.</p>
+          <button type="button" onClick={onClose} className="mt-6 w-full cursor-pointer rounded-xl bg-aqua-dark py-3 font-black text-white transition hover:bg-ink active:scale-95">
             إغلاق
           </button>
         </div>
@@ -261,32 +251,32 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-4 font-arabic" dir="rtl">
-      <form onSubmit={submit} className="w-full max-w-lg rounded-3xl bg-[#0d1322] border border-slate-800 p-6 shadow-2xl text-white my-8">
-        <div className="mb-5 flex items-center justify-between">
+    <div className={overlay} dir="rtl">
+      <form onSubmit={submit} className="my-8 w-full max-w-lg rounded-3xl border border-aqua-mid bg-white p-5 text-ink shadow-xl sm:p-6">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-aqua-light text-aqua-dark">
               <UserPlus className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">تسجيل طالب جديد</h2>
-              <p className="text-xs text-slate-400">أنشئ حسابك للتعلم ومتابعة تقدمك</p>
+              <h2 className="text-lg font-black">تسجيل طالب جديد</h2>
+              <p className="text-xs text-ink/60">أنشئ حسابك للتعلم ومتابعة تقدمك</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white transition-all cursor-pointer">
+          <button type="button" onClick={onClose} className="cursor-pointer rounded-xl bg-aqua-light/60 p-2 text-ink/70 transition hover:bg-aqua-light hover:text-ink" aria-label="إغلاق">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-500/10 border border-rose-500/30 p-3 text-xs font-bold text-rose-400">
-            <AlertCircle className="h-4 w-4 shrink-0" />
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-600">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
           </div>
         )}
 
-        <fieldset disabled={saving} className="grid gap-3 sm:grid-cols-2 disabled:opacity-70">
-          <label className="text-xs font-bold text-slate-300">
+        <fieldset disabled={saving} className="grid gap-3 disabled:opacity-70 sm:grid-cols-2">
+          <label className="text-xs font-bold text-ink">
             الاسم الكامل
             <input
               ref={fullNameRef}
@@ -297,10 +287,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
             />
           </label>
 
-          <label className="text-xs font-bold text-slate-300">
+          <label className="text-xs font-bold text-ink">
             البريد الإلكتروني
             <div className="relative">
-              <Mail className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+              <Mail className="absolute right-3 top-[1.15rem] h-4 w-4 text-aqua-dark" />
               <input
                 ref={emailRef}
                 required
@@ -312,10 +302,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
             </div>
           </label>
 
-          <label className="text-xs font-bold text-slate-300">
+          <label className="text-xs font-bold text-ink">
             الهاتف
             <div className="relative">
-              <Phone className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+              <Phone className="absolute right-3 top-[1.15rem] h-4 w-4 text-aqua-dark" />
               <input
                 ref={phoneRef}
                 value={phone}
@@ -326,27 +316,22 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
             </div>
           </label>
 
-          {/* حقل الدولة - قائمة اختيار بدل الكتابة الحرة */}
-          <label className="text-xs font-bold text-slate-300">
+          <label className="text-xs font-bold text-ink">
             الدولة
             <div className="relative">
-              <Globe className="absolute right-3 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Globe className="pointer-events-none absolute right-3 top-[1.15rem] h-4 w-4 text-aqua-dark" />
               <select
                 ref={countryRef}
                 required
                 value={country}
                 onChange={(e) => { setCountry(e.target.value); if (fieldError === 'country') setFieldError(''); }}
-                className={`${fieldClass('country')} appearance-none pr-10 cursor-pointer`}
+                className={`${fieldClass('country')} cursor-pointer appearance-none pr-10`}
               >
-                <option value="" disabled>
-                  اختر دولتك...
-                </option>
+                <option value="" disabled>اختر دولتك...</option>
                 {COUNTRY_OPTIONS.map((group) => (
                   <optgroup key={group.group} label={group.group}>
                     {group.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -354,27 +339,22 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
             </div>
           </label>
 
-          {/* حقل الهدف/المجال - قائمة اختيار بدل الكتابة الحرة */}
-          <label className="text-xs font-bold text-slate-300 sm:col-span-2">
+          <label className="text-xs font-bold text-ink sm:col-span-2">
             هدفك أو مجالك
             <div className="relative">
-              <Target className="absolute right-3 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Target className="pointer-events-none absolute right-3 top-[1.15rem] h-4 w-4 text-aqua-dark" />
               <select
                 ref={goalRef}
                 required
                 value={goal}
                 onChange={(e) => { setGoal(e.target.value); if (fieldError === 'goal') setFieldError(''); }}
-                className={`${fieldClass('goal')} appearance-none pr-10 cursor-pointer`}
+                className={`${fieldClass('goal')} cursor-pointer appearance-none pr-10`}
               >
-                <option value="" disabled>
-                  اختر مجالك أو هدفك التعليمي...
-                </option>
+                <option value="" disabled>اختر مجالك أو هدفك التعليمي...</option>
                 {GOAL_OPTIONS.map((group) => (
                   <optgroup key={group.group} label={group.group}>
                     {group.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -394,10 +374,10 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
             )}
           </label>
 
-          <label className="text-xs font-bold text-slate-300">
+          <label className="text-xs font-bold text-ink">
             كلمة المرور
             <div className="relative">
-              <Lock className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+              <Lock className="absolute right-3 top-[1.15rem] h-4 w-4 text-aqua-dark" />
               <input
                 ref={passwordRef}
                 required
@@ -410,14 +390,14 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 tabIndex={-1}
-                className="absolute left-3 top-3.5 text-slate-400 hover:text-white cursor-pointer"
+                className="absolute left-3 top-[1.15rem] cursor-pointer text-ink/50 hover:text-ink"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </label>
 
-          <label className="text-xs font-bold text-slate-300">
+          <label className="text-xs font-bold text-ink">
             تأكيد كلمة المرور
             <div className="relative">
               <input
@@ -432,7 +412,7 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
                 type="button"
                 onClick={() => setShowConfirmPassword((v) => !v)}
                 tabIndex={-1}
-                className="absolute left-3 top-3.5 text-slate-400 hover:text-white cursor-pointer"
+                className="absolute left-3 top-[1.15rem] cursor-pointer text-ink/50 hover:text-ink"
               >
                 {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -442,7 +422,7 @@ export const StudentRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onS
 
         <button
           disabled={saving}
-          className="mt-5 w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 py-3 font-black text-slate-950 disabled:opacity-60 transition-all cursor-pointer active:scale-95"
+          className="mt-5 w-full cursor-pointer rounded-xl bg-aqua-dark py-3 font-black text-white transition-all hover:bg-ink active:scale-95 disabled:opacity-60"
         >
           {saving ? 'جارٍ إنشاء الحساب...' : 'إنشاء الحساب'}
         </button>

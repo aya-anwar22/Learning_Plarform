@@ -16,7 +16,7 @@ interface InstructorStudioProps {
 }
 
 export const InstructorStudio: React.FC<InstructorStudioProps> = ({
-  instructorCourses,
+  instructorCourses = [], // FIX 1: default value so it is never undefined
   onAddCourse,
   onOpenAiGenerator,
   onOpenAddCourseModal,
@@ -33,6 +33,9 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
   const [category, setCategory] = useState<CategoryType>('برمجة وتطوير');
   const [level, setLevel] = useState<CourseLevel>('متوسط');
   const [estimatedHours, setEstimatedHours] = useState(8);
+
+  // Safe copy of courses (also protects against null)
+  const safeCourses = instructorCourses ?? [];
 
   // Check if instructor is verified & approved
   const isApproved = isApprovedInstructor || (instructorProfile?.isApproved === true && instructorProfile.status !== 'pending');
@@ -143,7 +146,8 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
   }
 
   // Filter pending course requests submitted by this lecturer
-  const myPendingRequests = pendingCourseRequests.filter(
+  // FIX 3: protected against undefined/null
+  const myPendingRequests = (pendingCourseRequests ?? []).filter(
     (req) => !instructorProfile?.email || req.instructorEmail === instructorProfile.email || req.instructorName === instructorProfile.fullName
   );
 
@@ -257,6 +261,16 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
               <Sparkles className="w-4 h-4" />
               <span>توليد دورة بالـ AI</span>
             </button>
+
+            {onLogoutInstructor && (
+              <button
+                onClick={onLogoutInstructor}
+                className="px-4 py-3 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-400/30 text-rose-200 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 text-rose-300" />
+                <span>تسجيل الخروج</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -405,7 +419,7 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white font-arabic">
-            الدورات التدريبية المتاحة ({instructorCourses.length})
+            الدورات التدريبية المتاحة ({safeCourses.length})
           </h2>
           <span className="text-xs text-slate-500 font-medium">
             اضغط على أي دورة لتعديل محتواها وإرسال التحديث للمسؤول
@@ -413,7 +427,7 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {instructorCourses.map((course) => (
+          {safeCourses.map((course) => (
             <div
               key={course.id}
               className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-5 space-y-3 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
@@ -438,11 +452,12 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
                 <div className="flex items-center justify-between text-xs text-slate-500">
                   <div className="flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{course.studentsEnrolledCount} طلاب</span>
+                    <span>{course.studentsEnrolledCount ?? 0} طلاب</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{course.modules.reduce((acc, m) => acc + m.lessons.length, 0)} دروس</span>
+                    {/* FIX 2: protected reduce against missing modules/lessons */}
+                    <span>{(course.modules ?? []).reduce((acc, m) => acc + (m.lessons?.length ?? 0), 0)} دروس</span>
                   </div>
                 </div>
 
@@ -465,3 +480,5 @@ export const InstructorStudio: React.FC<InstructorStudioProps> = ({
     </div>
   );
 };
+
+export default InstructorStudio;

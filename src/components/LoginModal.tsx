@@ -15,6 +15,9 @@ interface LoginModalProps {
 
 const profileId = (email: string) => encodeURIComponent(email.trim().toLowerCase());
 
+const inputClass =
+  'h-11 w-full rounded-xl border border-aqua-mid bg-white pr-10 pl-3 text-sm text-ink placeholder:text-ink/40 outline-none transition focus:border-aqua-dark focus:ring-2 focus:ring-aqua/40';
+
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
@@ -128,29 +131,68 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" dir="rtl">
-      <div className="relative w-full max-w-md rounded-3xl border border-slate-800 bg-[#0d1322] p-6 text-white shadow-2xl">
-        <button type="button" onClick={onClose} className="absolute left-4 top-4 rounded-xl bg-slate-800 p-2 text-slate-400 hover:text-white"><X className="h-5 w-5" /></button>
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400"><LogIn className="h-6 w-6" /></div>
-          <div><h3 className="text-lg font-black">{mode === 'login' ? 'تسجيل الدخول' : 'إعادة تعيين كلمة المرور'}</h3><p className="text-xs text-slate-400">للطالب أو المحاضر</p></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-gradient-to-br from-[#E3F1F3] via-white to-[#C6E2E6] p-4 font-arabic" dir="rtl">
+      <div className="relative my-8 w-full max-w-md rounded-3xl border border-aqua-mid bg-white p-5 text-ink shadow-xl sm:p-7">
+        <button type="button" onClick={onClose} className="absolute left-4 top-4 cursor-pointer rounded-xl bg-aqua-light/60 p-2 text-ink/70 transition hover:bg-aqua-light hover:text-ink" aria-label="إغلاق">
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="mb-6 flex items-center gap-3 pl-10">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-aqua-light text-aqua-dark">
+            <LogIn className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-ink">{mode === 'login' ? 'تسجيل الدخول' : 'إعادة تعيين كلمة المرور'}</h3>
+            <p className="text-xs text-ink/60">للطالب أو المحاضر</p>
+          </div>
         </div>
 
-        {error && <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300"><AlertCircle className="h-4 w-4" /><span>{error}</span></div>}
-        {message && <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">{message}</div>}
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-600">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+        {message && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700">{message}</div>}
 
         {mode === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-4">
-            <label className="block text-xs font-bold text-slate-300">البريد الإلكتروني *<span className="relative mt-1 block"><Mail className="absolute right-3 top-3 h-4 w-4 text-slate-400" /><input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 w-full rounded-xl border border-slate-700 bg-[#131b2e] pr-10 pl-3 text-sm text-white outline-none focus:border-emerald-500" /></span></label>
-            <label className="block text-xs font-bold text-slate-300">كلمة المرور *<span className="relative mt-1 block"><Lock className="absolute right-3 top-3 h-4 w-4 text-slate-400" /><input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 w-full rounded-xl border border-slate-700 bg-[#131b2e] pr-10 pl-3 text-sm text-white outline-none focus:border-emerald-500" /></span></label>
-            <button disabled={loading} className="h-12 w-full rounded-xl bg-emerald-500 text-sm font-black text-slate-950 disabled:opacity-60">{loading ? 'جارٍ الدخول...' : 'دخول الآن'}</button>
-            <button type="button" onClick={() => { resetState(); setMode('reset'); }} className="w-full text-xs font-bold text-emerald-400 hover:text-emerald-300">نسيت كلمة المرور؟</button>
+            <label className="block text-xs font-bold text-ink">
+              البريد الإلكتروني *
+              <span className="relative mt-1.5 block">
+                <Mail className="absolute right-3 top-3.5 h-4 w-4 text-aqua-dark" />
+                <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              </span>
+            </label>
+            <label className="block text-xs font-bold text-ink">
+              كلمة المرور *
+              <span className="relative mt-1.5 block">
+                <Lock className="absolute right-3 top-3.5 h-4 w-4 text-aqua-dark" />
+                <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={inputClass} />
+              </span>
+            </label>
+            <button disabled={loading} className="h-12 w-full cursor-pointer rounded-xl bg-aqua-dark text-sm font-black text-white transition hover:bg-ink active:scale-95 disabled:opacity-60">
+              {loading ? 'جارٍ الدخول...' : 'دخول الآن'}
+            </button>
+            <button type="button" onClick={() => { resetState(); setMode('reset'); }} className="w-full cursor-pointer text-xs font-bold text-aqua-dark hover:underline">
+              نسيت كلمة المرور؟
+            </button>
           </form>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
-            <label className="block text-xs font-bold text-slate-300">اكتب الإيميل المسجل *<span className="relative mt-1 block"><Mail className="absolute right-3 top-3 h-4 w-4 text-slate-400" /><input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 w-full rounded-xl border border-slate-700 bg-[#131b2e] pr-10 pl-3 text-sm text-white outline-none focus:border-emerald-500" /></span></label>
-            <button disabled={loading} className="h-12 w-full rounded-xl bg-emerald-500 text-sm font-black text-slate-950 disabled:opacity-60">{loading ? 'جارٍ الإرسال...' : 'إرسال رابط إعادة التعيين'}</button>
-            <button type="button" onClick={() => { resetState(); setMode('login'); }} className="w-full text-xs font-bold text-slate-400 hover:text-white">العودة لتسجيل الدخول</button>
+            <label className="block text-xs font-bold text-ink">
+              اكتب الإيميل المسجل *
+              <span className="relative mt-1.5 block">
+                <Mail className="absolute right-3 top-3.5 h-4 w-4 text-aqua-dark" />
+                <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
+              </span>
+            </label>
+            <button disabled={loading} className="h-12 w-full cursor-pointer rounded-xl bg-aqua-dark text-sm font-black text-white transition hover:bg-ink active:scale-95 disabled:opacity-60">
+              {loading ? 'جارٍ الإرسال...' : 'إرسال رابط إعادة التعيين'}
+            </button>
+            <button type="button" onClick={() => { resetState(); setMode('login'); }} className="w-full cursor-pointer text-xs font-bold text-ink/60 hover:text-ink hover:underline">
+              العودة لتسجيل الدخول
+            </button>
           </form>
         )}
       </div>

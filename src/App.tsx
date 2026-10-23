@@ -56,15 +56,15 @@ class SafeErrorBoundary extends React.Component<{ children: React.ReactNode }, {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-center text-white bg-slate-900 min-h-screen flex flex-col items-center justify-center" dir="rtl">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">حدث خطأ أثناء عرض الصفحة</h2>
-          <p className="text-slate-400 mb-6 font-mono text-sm">{this.state.error}</p>
+        <div className="p-6 sm:p-8 text-center text-white bg-ink min-h-screen flex flex-col items-center justify-center" dir="rtl">
+          <h2 className="text-2xl font-bold text-red-400 mb-4">حدث خطأ أثناء عرض الصفحة</h2>
+          <p className="text-white/70 mb-6 font-mono text-sm">{this.state.error}</p>
           <button
             onClick={() => {
               this.setState({ hasError: false });
               window.location.reload();
             }}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+            className="px-6 py-2 bg-aqua-dark hover:bg-aqua text-white rounded-lg transition"
           >
             إعادة تحميل الصفحة
           </button>
@@ -74,6 +74,12 @@ class SafeErrorBoundary extends React.Component<{ children: React.ReactNode }, {
     return this.props.children;
   }
 }
+
+// المحاضر لا يُعتبر معتمدًا إلا لو فيه علامة approvedByAdmin
+// وهذه العلامة تُضاف فقط عند ضغط المسؤول على "موافقة" - أي شيء آخر = قيد المراجعة
+const isInstructorApproved = (i?: InstructorProfile | null) =>
+  (i as any)?.approvedByAdmin === true;
+const isPendingInstructor = (i: InstructorProfile) => !isInstructorApproved(i);
 
 export default function App() {
   return (
@@ -294,6 +300,25 @@ function MainAppContent() {
     return () => unsubProgress();
   }, [studentProfile?.email]);
 
+  // لما المسؤول يوافق على المحاضر، يتفتح له الاستوديو تلقائيًا
+  useEffect(() => {
+    if (!instructorProfile || isInstructorApproved(instructorProfile)) return;
+    const approved = extraRegisteredInstructors.find(
+      (i) => i.email?.toLowerCase() === instructorProfile.email?.toLowerCase() && !isPendingInstructor(i)
+    );
+    if (approved) {
+      const updated = {
+        ...instructorProfile,
+        ...approved,
+        status: 'approved',
+        isApproved: true,
+        approvedByAdmin: true
+      } as InstructorProfile;
+      setInstructorProfile(updated);
+      localStorage.setItem('edu_instructor_profile', JSON.stringify(updated));
+    }
+  }, [extraRegisteredInstructors, instructorProfile]);
+
   const handleAddReview = async (newReviewData: Omit<CourseReview, 'id' | 'createdAt'>) => {
     const newReview: CourseReview = {
       ...newReviewData,
@@ -384,10 +409,10 @@ function MainAppContent() {
     });
   };
 
-  // === دالة تسجيل الطالب في كورس معين: تضيف الـ courseId لقائمة enrolledCourseIds بالبروفايل ===
+  // تسجيل الطالب في كورس: يضيف الـ courseId لقائمة enrolledCourseIds
   const enrollStudentInCourse = (profile: StudentProfile, courseId: string): StudentProfile => {
     const currentIds = profile.enrolledCourseIds || [];
-    if (currentIds.includes(courseId)) return profile; // مسجل بالفعل، لا داعي للتكرار
+    if (currentIds.includes(courseId)) return profile;
     const updatedProfile: StudentProfile = {
       ...profile,
       enrolledCourseIds: [...currentIds, courseId],
@@ -398,7 +423,7 @@ function MainAppContent() {
     return updatedProfile;
   };
 
-  // === عند الضغط على كورس من الكتالوج: سجّل الطالب فيه تلقائيًا (لو عنده حساب) وافتحه ===
+  // عند الضغط على كورس من الكتالوج
   const handleSelectCourseFromCatalog = (course: Course) => {
     if (!studentProfile) {
       setPendingCourseToStart(course);
@@ -416,7 +441,6 @@ function MainAppContent() {
       isApproved: true
     };
 
-    // لو الطالب كان بيحاول يفتح كورس معين قبل التسجيل، نضيفه لقائمة كورساته مباشرة
     if (pendingCourseToStart) {
       approvedProfile = {
         ...approvedProfile,
@@ -440,7 +464,6 @@ function MainAppContent() {
     return { isPending: false };
   };
 
-  // تسجيل دخول الطالب اللي عنده حساب موجود بالفعل (إيميل + باسورد)
   const handleLoginSuccess = (student: StudentProfile) => {
     let approvedProfile: StudentProfile = {
       ...student,
@@ -478,15 +501,44 @@ function MainAppContent() {
   };
 
   const handleSaveInstructorProfile = (profile: InstructorProfile) => {
-    const approvedProfile: InstructorProfile = {
-      ...profile,
-      status: 'approved',
-      isApproved: true
-    };
-    setInstructorProfile(approvedProfile);
-    localStorage.setItem('edu_instructor_profile', JSON.stringify(approvedProfile));
-    saveInstructorToCloud(approvedProfile).catch(console.warn);
-    return { isPending: false };
+    const email = profile.email?.toLowerCase();
+    const existing = extraRegisteredInstructors.find((i) => i.email?.toLowerCase() === email);
+    const existingApproved = !!existing && isInstructorApproved(existing);
+    const isOwnApprovedProfile =
+      existingApproved &&
+      isInstructorApproved(instructorProfile) &&
+      instructorProfile?.email?.toLowerCase() === email;
+
+    // إيميل محاضر معتمد بالفعل ومش بتاع صاحب الجهاز الحالي -> ممنوع (منع الانتحال)
+    if (existingApproved && !isOwnApprovedProfile) {
+      window.alert('هذا البريد الإلكتروني مسجّل بالفعل كمحاضر معتمد.');
+      return { isPending: true };
+    }
+
+    const alreadyApproved = isOwnApprovedProfile;
+
+    const finalProfile = (alreadyApproved
+      ? { ...profile, status: 'approved', isApproved: true, approvedByAdmin: true }
+      : { ...profile, status: 'pending', isApproved: false, approvedByAdmin: false }) as InstructorProfile;
+
+    setInstructorProfile(finalProfile);
+    localStorage.setItem('edu_instructor_profile', JSON.stringify(finalProfile));
+
+    // الحفظ في السحابة بحالته (pending أو approved) - بيظهر للمسؤول في قسم الموافقات
+    saveInstructorToCloud(finalProfile).catch(console.warn);
+
+    // اقفل نافذة تسجيل المحاضر بعد الحفظ
+    setIsInstructorRegistrationModalOpen(false);
+    setActiveTab('instructor');
+    return { isPending: !alreadyApproved };
+  };
+
+  // تسجيل خروج المحاضر
+  const handleLogoutInstructor = () => {
+    setInstructorProfile(null);
+    localStorage.removeItem('edu_instructor_profile');
+    setActiveTab('catalog');
+    setSelectedCourse(null);
   };
 
   const handleDeleteAllStudents = async () => {
@@ -532,11 +584,39 @@ function MainAppContent() {
         console.warn('Failed to clear pending instructor:', email, err);
       }
     }
+    for (const inst of extraRegisteredInstructors.filter(isPendingInstructor)) {
+      try {
+        await deleteInstructorFromCloud(inst.email);
+      } catch (err) {
+        console.warn('Failed to clear pending instructor:', inst.email, err);
+      }
+    }
     setPendingStudentRequests([]);
     setPendingInstructorRequests([]);
     localStorage.removeItem('edu_pending_students');
     localStorage.removeItem('edu_pending_instructors');
   };
+
+  // قوائم المحاضرين للوحة المسؤول: المعلّقين (من القائمتين بدون تكرار) والمعتمدين
+  const adminPendingInstructors: InstructorProfile[] = [
+    ...(pendingInstructorRequests || []),
+    ...(extraRegisteredInstructors || []).filter(isPendingInstructor)
+  ].filter(
+    (inst, idx, arr) =>
+      arr.findIndex((x) => x.email?.toLowerCase() === inst.email?.toLowerCase()) === idx
+  );
+  const adminApprovedInstructors: InstructorProfile[] = (extraRegisteredInstructors || []).filter(
+    (i) => !isPendingInstructor(i)
+  );
+
+  // نسخة محمية: حالة الاعتماد بتتحدد بس من approvedByAdmin بغض النظر عن أي حقول تانية
+  const gatedInstructorProfile: InstructorProfile | null = instructorProfile
+    ? ({
+        ...instructorProfile,
+        isApproved: isInstructorApproved(instructorProfile),
+        status: isInstructorApproved(instructorProfile) ? 'approved' : 'pending'
+      } as InstructorProfile)
+    : null;
 
   const safeStudentProfile: StudentProfile = studentProfile || {
     fullName: 'طالب جديد',
@@ -547,109 +627,127 @@ function MainAppContent() {
     enrolledCourseIds: []
   };
 
-  return (
-    <div className="min-h-screen bg-[#090d16] text-white font-arabic" dir="rtl">
-      <Header
-        currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setSelectedCourse(null);
-          setActiveTab(tab);
-        }}
-        onOpenAiTutor={() => setIsAiTutorOpen(true)}
-        onOpenStudentProfile={() => setIsStudentProfileModalOpen(true)}
-        onOpenAddAccount={() => setIsAddUserModalOpen(true)}
-        onOpenCatalog={() => {
-          setSelectedCourse(null);
-          setActiveTab('catalog');
-        }}
-        onOpenDashboard={() => {
-          setSelectedCourse(null);
-          setActiveTab('dashboard');
-        }}
-        onSearch={setSearchQuery}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        courses={courses}
-        onSelectCourse={(course) => {
-          setActiveTab('catalog');
-          setSelectedCourse(course);
-        }}
-        studentProfile={studentProfile}
-        instructorProfile={instructorProfile}
-        onOpenRegistrationModal={() => setIsRegistrationModalOpen(true)}
-        onOpenInstructorRegistrationModal={() => setIsInstructorRegistrationModalOpen(true)}
-        onOpenAddUserModal={() => setIsAddUserModalOpen(true)}
-        onOpenAdminModal={() => setIsAdminModalOpen(true)}
-        onOpenLoginModal={() => setIsLoginModalOpen(true)}
-        isCloudSynced={isCloudSynced}
-      />
+  // لما أي نافذة تفتح، الصفحة الرئيسية تختفي وتظهر النافذة لوحدها
+  const isPageOpen =
+    isRegistrationModalOpen ||
+    isLoginModalOpen ||
+    isInstructorRegistrationModalOpen ||
+    isAddUserModalOpen ||
+    isAdminModalOpen ||
+    isStudentProfileModalOpen;
 
-      <main className="w-full pb-16">
-        {selectedCourse ? (
-          <CoursePlayer
-            course={selectedCourse}
-            onBack={() => setSelectedCourse(null)}
-            userProgress={userProgressMap[selectedCourse.id] || {
-              courseId: selectedCourse.id,
-              completedLessonIds: [],
-              quizScores: {},
-              isCompleted: false,
-              lastStudiedAt: new Date().toISOString()
-            }}
-            onToggleLessonComplete={handleToggleLessonComplete}
-            onOpenQuiz={(course) => setActiveQuizCourse(course)}
-            onOpenCertificate={(course) => setCertificateCourse(course)}
-          />
-        ) : activeTab === 'dashboard' ? (
-          <StudentDashboard
-            courses={courses}
-            userProgressMap={userProgressMap}
-            studentProfile={studentProfile}
-            onSelectCourse={(course) => setSelectedCourse(course)}
-            onOpenCertificate={(course) => setCertificateCourse(course)}
-            onOpenRegistrationModal={() => setIsRegistrationModalOpen(true)}
-            onLogoutStudent={handleLogoutStudent}
-            onBrowseCatalog={() => {
-              setSelectedCourse(null);
-              setActiveTab('catalog');
-            }}
-          />
-        ) : activeTab === 'instructor' ? (
-          <InstructorStudio
-            courses={courses}
-            instructorProfile={instructorProfile}
-            onAddCourse={handleAddCourse}
-            onUpdateCourse={handleUpdateCourse}
-            onDeleteCourse={(id) => {
-              setCourses(prev => prev.filter(c => c.id !== id));
-              deleteCourseFromCloud(id).catch(console.warn);
-            }}
-            onOpenAiGenerator={() => setIsAiGeneratorOpen(true)}
-          />
-        ) : (
-          <>
-            <HeroBanner
-              onExplore={() => {
-                const el = document.getElementById('catalog-section');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
+  return (
+    <div className="min-h-screen bg-[#E3F1F3] text-ink font-arabic" dir="rtl">
+      {/* الصفحة الرئيسية: تتخبى (مش تتمسح) عشان البحث والفلاتر يفضلوا زي ما هم */}
+      <div className={isPageOpen ? 'hidden' : ''}>
+        <Header
+          currentRole={currentRole}
+          onRoleChange={setCurrentRole}
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setSelectedCourse(null);
+            setActiveTab(tab);
+          }}
+          onOpenAiTutor={() => setIsAiTutorOpen(true)}
+          onOpenStudentProfile={() => setIsStudentProfileModalOpen(true)}
+          onOpenAddAccount={() => setIsAddUserModalOpen(true)}
+          onOpenCatalog={() => {
+            setSelectedCourse(null);
+            setActiveTab('catalog');
+          }}
+          onOpenDashboard={() => {
+            setSelectedCourse(null);
+            setActiveTab('dashboard');
+          }}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          courses={courses}
+          onSelectCourse={(course) => {
+            setActiveTab('catalog');
+            setSelectedCourse(course);
+          }}
+          studentProfile={studentProfile}
+          instructorProfile={gatedInstructorProfile}
+          onOpenRegistrationModal={() => setIsRegistrationModalOpen(true)}
+          onOpenInstructorRegistrationModal={() => setIsInstructorRegistrationModalOpen(true)}
+          onOpenAddUserModal={() => setIsAddUserModalOpen(true)}
+          onOpenAdminModal={() => setIsAdminModalOpen(true)}
+          onOpenLoginModal={() => setIsLoginModalOpen(true)}
+          isCloudSynced={isCloudSynced}
+        />
+
+        <main className="w-full pb-10 sm:pb-14">
+          {selectedCourse ? (
+            <CoursePlayer
+              course={selectedCourse}
+              onBack={() => setSelectedCourse(null)}
+              userProgress={userProgressMap[selectedCourse.id] || {
+                courseId: selectedCourse.id,
+                completedLessonIds: [],
+                quizScores: {},
+                isCompleted: false,
+                lastStudiedAt: new Date().toISOString()
               }}
-              onOpenAiTutor={() => setIsAiTutorOpen(true)}
+              onToggleLessonComplete={handleToggleLessonComplete}
+              onOpenQuiz={(course) => setActiveQuizCourse(course)}
+              onOpenCertificate={(course) => setCertificateCourse(course)}
             />
-            <div id="catalog-section">
-              <CourseCatalog
-                courses={courses}
-                onSelectCourse={handleSelectCourseFromCatalog}
-                searchQuery={searchQuery}
-                userProgressMap={userProgressMap}
-                reviews={reviews}
-                onAddReview={handleAddReview}
+          ) : activeTab === 'dashboard' ? (
+            <StudentDashboard
+              courses={courses}
+              userProgressMap={userProgressMap}
+              studentProfile={studentProfile}
+              onSelectCourse={(course) => setSelectedCourse(course)}
+              onOpenCertificate={(course) => setCertificateCourse(course)}
+              onOpenRegistrationModal={() => setIsRegistrationModalOpen(true)}
+              onLogoutStudent={handleLogoutStudent}
+              onBrowseCatalog={() => {
+                setSelectedCourse(null);
+                setActiveTab('catalog');
+              }}
+            />
+          ) : activeTab === 'instructor' ? (
+            <InstructorStudio
+              instructorCourses={courses}
+              instructorProfile={gatedInstructorProfile}
+              onAddCourse={handleAddCourse}
+              onOpenAiGenerator={() => setIsAiGeneratorOpen(true)}
+              pendingCourseRequests={pendingCourseRequests}
+              onOpenRegistrationModal={() => setIsInstructorRegistrationModalOpen(true)}
+              onLogoutInstructor={handleLogoutInstructor}
+              isApprovedInstructor={isInstructorApproved(instructorProfile)}
+            />
+          ) : (
+            <>
+              <HeroBanner
+                onOpenAiGenerator={() => setIsAiGeneratorOpen(true)}
+                onExploreCourses={() => {
+                  const el = document.getElementById('catalog-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                coursesCount={courses.length}
+                studentsCount={extraRegisteredStudents.length}
               />
-            </div>
-          </>
-        )}
-      </main>
+              <div id="catalog-section">
+                <CourseCatalog
+                  courses={courses}
+                  onSelectCourse={handleSelectCourseFromCatalog}
+                  onOpenAiGenerator={() => setIsAiGeneratorOpen(true)}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
+                  userProgressMap={userProgressMap}
+                  reviews={reviews}
+                  onAddReview={handleAddReview}
+                />
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      {/* خلفية نضيفة ورا النوافذ المفتوحة */}
+      {isPageOpen && <div className="fixed inset-0 z-40 bg-[#E3F1F3]" />}
 
       {/* Modals */}
       {isRegistrationModalOpen && (
@@ -670,7 +768,7 @@ function MainAppContent() {
           isOpen={isInstructorRegistrationModalOpen}
           onClose={() => setIsInstructorRegistrationModalOpen(false)}
           onSaveProfile={handleSaveInstructorProfile}
-            />
+        />
       )}
 
       {isStudentProfileModalOpen && (
@@ -706,9 +804,9 @@ function MainAppContent() {
           onClose={() => setIsAdminModalOpen(false)}
           courses={courses || []}
           registeredStudents={extraRegisteredStudents || []}
-          registeredInstructors={extraRegisteredInstructors || []}
+          registeredInstructors={adminApprovedInstructors}
           pendingStudents={pendingStudentRequests || []}
-          pendingInstructors={pendingInstructorRequests || []}
+          pendingInstructors={adminPendingInstructors}
           pendingCourseRequests={pendingCourseRequests || []}
           onViewStudentDetails={(student) => {
             setSelectedStudentForDetails(student);
@@ -733,13 +831,17 @@ function MainAppContent() {
             deleteStudentFromCloud(email);
           }}
           onApproveInstructor={(email) => {
-            const target = pendingInstructorRequests.find(p => p.email.toLowerCase() === email.toLowerCase());
+            const target = adminPendingInstructors.find(p => p.email.toLowerCase() === email.toLowerCase());
             if (target) {
-              saveInstructorToCloud(target);
+              saveInstructorToCloud({ ...target, status: 'approved', isApproved: true, approvedByAdmin: true } as InstructorProfile);
               deletePendingInstructorFromCloud(email);
             }
           }}
-          onRejectInstructor={deletePendingInstructorFromCloud}
+          onRejectInstructor={(email) => {
+            deletePendingInstructorFromCloud(email);
+            deleteInstructorFromCloud(email);
+            setExtraRegisteredInstructors(prev => prev.filter(i => i.email.toLowerCase() !== email.toLowerCase()));
+          }}
           onDeleteInstructor={(email) => {
             setExtraRegisteredInstructors(prev => prev.filter(i => i.email.toLowerCase() !== email.toLowerCase()));
             deleteInstructorFromCloud(email);

@@ -48,7 +48,6 @@ interface Props {
   onUpdateCourse?: (course: Course) => void;
   updateAdminConfigInCloud?: (config: { passcode: string }) => Promise<void>;
   getStoredMasterPasscode?: () => string;
-  // دوال المسح الجماعي (Danger Zone)
   onDeleteAllStudents?: () => Promise<void> | void;
   onDeleteAllInstructors?: () => Promise<void> | void;
   onClearAllPendingRequests?: () => Promise<void> | void;
@@ -58,7 +57,6 @@ interface Props {
 type Tab = 'overview' | 'approvals' | 'students' | 'instructors' | 'courses' | 'requests';
 type AuthView = 'login' | 'forgot-email' | 'forgot-otp' | 'forgot-newpass';
 
-// الإيميل الوحيد المسموح له باسترجاع كلمة مرور مالك المنصة
 const ALLOWED_RECOVERY_EMAIL = 'mazenhamada37@gmail.com';
 
 const labelFor = (key: string) => {
@@ -87,6 +85,23 @@ const safeEntries = (item: Record<string, any>) =>
       value !== '' &&
       typeof value !== 'object'
   );
+
+// أنماط مشتركة
+const overlayBg = 'bg-gradient-to-br from-[#E3F1F3] via-white to-[#C6E2E6]';
+const inputCls =
+  'w-full rounded-xl border border-aqua-mid bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/40 outline-none transition focus:border-aqua-dark focus:ring-2 focus:ring-aqua/40';
+const primaryBtn =
+  'w-full cursor-pointer rounded-xl bg-aqua-dark py-3 text-sm font-black text-white transition hover:bg-ink active:scale-95 disabled:opacity-60';
+const linkBtn = 'mt-3 w-full cursor-pointer text-center text-xs font-bold text-aqua-dark hover:underline disabled:opacity-60';
+const mutedLinkBtn = 'mt-2 w-full cursor-pointer text-center text-xs font-bold text-ink/60 hover:text-ink hover:underline';
+const closeBtn = 'cursor-pointer rounded-xl bg-aqua-light/60 px-3 py-1 text-ink/70 transition hover:bg-aqua-light hover:text-ink';
+const errBox = 'mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-600';
+const okBox = 'mb-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-700';
+const rowCard =
+  'mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-aqua-mid bg-white p-4 transition hover:border-aqua-dark hover:bg-aqua-light/30';
+const pendingCard =
+  'flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border border-aqua bg-aqua-light/40 p-4';
+const emptyBox = 'rounded-xl bg-aqua-light/30 p-4 text-center text-xs text-ink/60';
 
 export const PlatformOwnerAdminModal: React.FC<Props> = ({
   isOpen,
@@ -119,7 +134,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
   const [showPasscode, setShowPasscode] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Forgot password flow states
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [otpValue, setOtpValue] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -134,7 +148,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
   const [search, setSearch] = useState('');
   const [details, setDetails] = useState<Record<string, any> | null>(null);
 
-  // Danger Zone confirmation states
   const [dangerAction, setDangerAction] = useState<'students' | 'instructors' | 'requests' | null>(null);
   const [dangerConfirmText, setDangerConfirmText] = useState('');
   const [isDangerLoading, setIsDangerLoading] = useState(false);
@@ -201,7 +214,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     resetForgotFlowState();
   };
 
-  // الخطوة 1: التأكد من الإيميل وإرسال رمز التحقق
   const handleSendOtp = async (event: React.FormEvent) => {
     event.preventDefault();
     setFlowError('');
@@ -235,7 +247,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     }
   };
 
-  // الخطوة 2: التحقق من الرمز المرسل
   const handleVerifyOtp = async (event: React.FormEvent) => {
     event.preventDefault();
     setFlowError('');
@@ -268,7 +279,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     }
   };
 
-  // إعادة إرسال الرمز
   const handleResendOtp = async () => {
     setFlowError('');
     setFlowSuccess('');
@@ -292,7 +302,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     }
   };
 
-  // الخطوة 3: تعيين كلمة مرور جديدة
   const handleSetNewPassword = async (event: React.FormEvent) => {
     event.preventDefault();
     setFlowError('');
@@ -333,7 +342,6 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     fn?.();
   };
 
-  // تنفيذ إجراء منطقة الخطر بعد التأكيد
   const executeDangerAction = async () => {
     if (dangerConfirmText.trim() !== 'حذف') return;
     setIsDangerLoading(true);
@@ -358,23 +366,38 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     }
   };
 
+  const PasswordEye: React.FC<{ shown: boolean; onToggle: () => void; title?: string }> = ({ shown, onToggle, title }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="absolute left-1 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg p-2 text-ink/50 hover:text-ink"
+      title={title}
+    >
+      {shown ? '🙈' : '👁️'}
+    </button>
+  );
+
+  const AuthHeader: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
+    <div className="mb-5 flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-lg font-black text-ink">{title}</h2>
+        <p className="mt-1 text-xs text-ink/60">{subtitle}</p>
+      </div>
+      <button type="button" onClick={close} className={closeBtn} aria-label="إغلاق">✕</button>
+    </div>
+  );
+
+  /* ================== شاشات الدخول ================== */
   if (!authenticated) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" dir="rtl">
-        <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 shadow-2xl">
+      <div className={`fixed inset-0 z-50 flex items-center justify-center overflow-y-auto ${overlayBg} p-4 font-arabic`} dir="rtl">
+        <div className="my-8 w-full max-w-sm rounded-3xl border border-aqua-mid bg-white p-5 text-ink shadow-xl sm:p-6">
 
-          {/* ============ شاشة تسجيل الدخول ============ */}
           {authView === 'login' && (
             <form onSubmit={login}>
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white">دخول مالك المنصة</h2>
-                  <p className="mt-1 text-xs text-slate-500">أدخل كلمة المرور للمتابعة</p>
-                </div>
-                <button type="button" onClick={close} className="rounded-xl px-3 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
-              </div>
+              <AuthHeader title="دخول مالك المنصة" subtitle="أدخل كلمة المرور للمتابعة" />
 
-              {loginError && <div className="mb-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-600">{loginError}</div>}
+              {loginError && <div className={errBox}>{loginError}</div>}
 
               <div className="relative mb-3">
                 <input
@@ -383,42 +406,28 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
                   placeholder="كلمة المرور"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-11 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                  className={`${inputCls} pl-11`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPasscode((v) => !v)}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  title={showPasscode ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-                >
-                  {showPasscode ? '🙈' : '👁️'}
-                </button>
+                <PasswordEye shown={showPasscode} onToggle={() => setShowPasscode((v) => !v)} title={showPasscode ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} />
               </div>
 
-              <button type="submit" className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700">دخول</button>
+              <button type="submit" className={primaryBtn}>دخول</button>
 
               <button
                 type="button"
                 onClick={() => { setAuthView('forgot-email'); setRecoveryEmail(''); setFlowError(''); setFlowSuccess(''); }}
-                className="mt-3 w-full text-center text-xs font-bold text-indigo-500 hover:text-indigo-700 hover:underline"
+                className={linkBtn}
               >
                 نسيت كلمة المرور؟
               </button>
             </form>
           )}
 
-          {/* ============ خطوة 1: إدخال الإيميل ============ */}
           {authView === 'forgot-email' && (
             <form onSubmit={handleSendOtp}>
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white">استرجاع كلمة المرور</h2>
-                  <p className="mt-1 text-xs text-slate-500">أدخل البريد الإلكتروني المصرح به لإرسال رمز التحقق</p>
-                </div>
-                <button type="button" onClick={close} className="rounded-xl px-3 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
-              </div>
+              <AuthHeader title="استرجاع كلمة المرور" subtitle="أدخل البريد الإلكتروني المصرح به لإرسال رمز التحقق" />
 
-              {flowError && <div className="mb-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-600">{flowError}</div>}
+              {flowError && <div className={errBox}>{flowError}</div>}
 
               <input
                 autoFocus
@@ -427,40 +436,23 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
                 onChange={(e) => setRecoveryEmail(e.target.value)}
                 placeholder="أدخل البريد الإلكتروني"
                 dir="ltr"
-                className="mb-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-left outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                className={`${inputCls} mb-3 text-left`}
               />
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
+              <button type="submit" disabled={isSubmitting} className={primaryBtn}>
                 {isSubmitting ? 'جارٍ الإرسال...' : 'إرسال رمز التحقق'}
               </button>
 
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="mt-3 w-full text-center text-xs font-bold text-slate-400 hover:text-slate-600 hover:underline"
-              >
-                الرجوع لتسجيل الدخول
-              </button>
+              <button type="button" onClick={goToLogin} className={mutedLinkBtn}>الرجوع لتسجيل الدخول</button>
             </form>
           )}
 
-          {/* ============ خطوة 2: إدخال رمز التحقق ============ */}
           {authView === 'forgot-otp' && (
             <form onSubmit={handleVerifyOtp}>
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white">رمز التحقق</h2>
-                  <p className="mt-1 text-xs text-slate-500">تم إرسال رمز مكوّن من 6 أرقام إلى بريدك</p>
-                </div>
-                <button type="button" onClick={close} className="rounded-xl px-3 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
-              </div>
+              <AuthHeader title="رمز التحقق" subtitle="تم إرسال رمز مكوّن من 6 أرقام إلى بريدك" />
 
-              {flowSuccess && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-600">{flowSuccess}</div>}
-              {flowError && <div className="mb-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-600">{flowError}</div>}
+              {flowSuccess && <div className={okBox}>{flowSuccess}</div>}
+              {flowError && <div className={errBox}>{flowError}</div>}
 
               <input
                 autoFocus
@@ -471,48 +463,24 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
                 onChange={(e) => setOtpValue(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="- - - - - -"
                 dir="ltr"
-                className="mb-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                className={`${inputCls} mb-3 text-center font-mono text-2xl tracking-[0.5em]`}
               />
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
+              <button type="submit" disabled={isSubmitting} className={primaryBtn}>
                 {isSubmitting ? 'جارٍ التحقق...' : 'تحقق من الرمز'}
               </button>
 
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={isSubmitting}
-                className="mt-3 w-full text-center text-xs font-bold text-indigo-500 hover:text-indigo-700 hover:underline disabled:opacity-60"
-              >
-                إعادة إرسال الرمز
-              </button>
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="mt-2 w-full text-center text-xs font-bold text-slate-400 hover:text-slate-600 hover:underline"
-              >
-                الرجوع لتسجيل الدخول
-              </button>
+              <button type="button" onClick={handleResendOtp} disabled={isSubmitting} className={linkBtn}>إعادة إرسال الرمز</button>
+              <button type="button" onClick={goToLogin} className={mutedLinkBtn}>الرجوع لتسجيل الدخول</button>
             </form>
           )}
 
-          {/* ============ خطوة 3: كلمة مرور جديدة ============ */}
           {authView === 'forgot-newpass' && (
             <form onSubmit={handleSetNewPassword}>
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 dark:text-white">كلمة مرور جديدة</h2>
-                  <p className="mt-1 text-xs text-slate-500">اختر كلمة مرور جديدة لحساب مالك المنصة</p>
-                </div>
-                <button type="button" onClick={close} className="rounded-xl px-3 py-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">✕</button>
-              </div>
+              <AuthHeader title="كلمة مرور جديدة" subtitle="اختر كلمة مرور جديدة لحساب مالك المنصة" />
 
-              {flowSuccess && <div className="mb-3 rounded-xl bg-emerald-50 p-3 text-xs font-bold text-emerald-600">{flowSuccess}</div>}
-              {flowError && <div className="mb-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-600">{flowError}</div>}
+              {flowSuccess && <div className={okBox}>{flowSuccess}</div>}
+              {flowError && <div className={errBox}>{flowError}</div>}
 
               <div className="relative mb-3">
                 <input
@@ -521,15 +489,9 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="كلمة المرور الجديدة"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-11 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                  className={`${inputCls} pl-11`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((v) => !v)}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  {showNewPassword ? '🙈' : '👁️'}
-                </button>
+                <PasswordEye shown={showNewPassword} onToggle={() => setShowNewPassword((v) => !v)} />
               </div>
 
               <div className="relative mb-3">
@@ -538,22 +500,12 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
                   value={confirmNewPassword}
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="تأكيد كلمة المرور الجديدة"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-11 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800"
+                  className={`${inputCls} pl-11`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="absolute left-1 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  {showConfirmPassword ? '🙈' : '👁️'}
-                </button>
+                <PasswordEye shown={showConfirmPassword} onToggle={() => setShowConfirmPassword((v) => !v)} />
               </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-black text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
+              <button type="submit" disabled={isSubmitting} className={primaryBtn}>
                 {isSubmitting ? 'جارٍ الحفظ...' : 'حفظ كلمة المرور'}
               </button>
             </form>
@@ -564,137 +516,114 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
     );
   }
 
+  /* ================== لوحة الإدارة ================== */
+  const statCard = 'rounded-2xl border border-aqua-mid bg-aqua-light/30 p-4';
+  const statNum = 'text-2xl font-black text-aqua-dark';
+  const statLabel = 'mt-1 text-xs font-bold text-ink/60';
+
+  const approveBtn = 'cursor-pointer rounded-xl bg-aqua-dark px-3 py-2 text-xs font-bold text-white hover:bg-ink';
+  const rejectBtn = 'cursor-pointer rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100';
+
+  const dangerBtn =
+    'cursor-pointer rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3" dir="rtl" onClick={close}>
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
-        <header className="flex items-center justify-between bg-gradient-to-l from-indigo-700 to-violet-600 px-5 py-4 text-white">
-          <div><h1 className="text-lg font-black">إدارة المنصة</h1><p className="text-xs text-indigo-100">اضغط على أي اسم أو كورس لعرض بياناته</p></div>
-          <button type="button" onClick={close} className="rounded-xl bg-white/15 px-3 py-1.5 hover:bg-white/25">✕</button>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${overlayBg} p-3 font-arabic`} dir="rtl" onClick={close}>
+      <div className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-aqua-mid bg-white text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <header className="flex items-center justify-between gap-3 bg-aqua-light px-4 py-4 text-ink sm:px-5">
+          <div>
+            <h1 className="text-lg font-black">إدارة المنصة</h1>
+            <p className="text-xs text-ink/70">اضغط على أي اسم أو كورس لعرض بياناته</p>
+          </div>
+          <button type="button" onClick={close} className="cursor-pointer rounded-xl bg-white/70 px-3 py-1.5 hover:bg-white" aria-label="إغلاق">✕</button>
         </header>
 
-        <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 px-3 dark:border-slate-800">
+        <nav className="flex gap-1 overflow-x-auto border-b border-aqua-mid px-3 no-scrollbar">
           {([['overview', '📊 نظرة عامة'], ['approvals', 'الموافقات'], ['students', 'الطلاب'], ['instructors', 'المحاضرون'], ['courses', 'الكورسات'], ['requests', 'طلبات التعديل']] as [Tab, string][]).map(([value, text]) => (
-            <button key={value} type="button" onClick={() => { setTab(value); setSearch(''); setDangerAction(null); setDangerMessage(''); }} className={`whitespace-nowrap border-b-2 px-4 py-3 text-xs font-black ${tab === value ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>{text}</button>
+            <button
+              key={value}
+              type="button"
+              onClick={() => { setTab(value); setSearch(''); setDangerAction(null); setDangerMessage(''); }}
+              className={`cursor-pointer whitespace-nowrap border-b-2 px-4 py-3 text-xs font-black ${tab === value ? 'border-aqua-dark text-aqua-dark' : 'border-transparent text-ink/60 hover:text-ink'}`}
+            >
+              {text}
+            </button>
           ))}
         </nav>
 
-        <main className="flex-1 overflow-y-auto p-5">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-5">
 
-          {/* ============ تاب نظرة عامة (كاميرا المراقبة) ============ */}
+          {/* نظرة عامة */}
           {tab === 'overview' && (
             <section className="space-y-6">
-              {/* Stats Cards */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
-                  <p className="text-2xl font-black text-indigo-600">{registeredStudents.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">إجمالي الطلاب</p>
-                </div>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-                  <p className="text-2xl font-black text-amber-600">{registeredInstructors.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">إجمالي المحاضرين</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-                  <p className="text-2xl font-black text-emerald-600">{courses.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">إجمالي الكورسات</p>
-                </div>
-                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900 dark:bg-orange-950/30">
-                  <p className="text-2xl font-black text-orange-600">{pendingStudentRows.length + pendingInstructorRows.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">طلبات تسجيل معلقة</p>
-                </div>
-                <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 dark:border-purple-900 dark:bg-purple-950/30">
-                  <p className="text-2xl font-black text-purple-600">{requestRows.length}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">طلبات تعديل كورسات</p>
-                </div>
-                <div className={`rounded-2xl border p-4 ${isCloudSynced ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30'}`}>
-                  <p className={`text-sm font-black ${isCloudSynced ? 'text-emerald-600' : 'text-rose-600'}`}>{isCloudSynced ? '🟢 متصل' : '🔴 غير متصل'}</p>
-                  <p className="mt-1 text-xs font-bold text-slate-500">حالة الاتصال بالسحابة</p>
+                <div className={statCard}><p className={statNum}>{registeredStudents.length}</p><p className={statLabel}>إجمالي الطلاب</p></div>
+                <div className={statCard}><p className={statNum}>{registeredInstructors.length}</p><p className={statLabel}>إجمالي المحاضرين</p></div>
+                <div className={statCard}><p className={statNum}>{courses.length}</p><p className={statLabel}>إجمالي الكورسات</p></div>
+                <div className={statCard}><p className={statNum}>{pendingStudentRows.length + pendingInstructorRows.length}</p><p className={statLabel}>طلبات تسجيل معلقة</p></div>
+                <div className={statCard}><p className={statNum}>{requestRows.length}</p><p className={statLabel}>طلبات تعديل كورسات</p></div>
+                <div className={`rounded-2xl border p-4 ${isCloudSynced ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
+                  <p className={`text-sm font-black ${isCloudSynced ? 'text-emerald-700' : 'text-rose-600'}`}>{isCloudSynced ? '🟢 متصل' : '🔴 غير متصل'}</p>
+                  <p className={statLabel}>حالة الاتصال بالسحابة</p>
                 </div>
               </div>
 
-              {/* آخر الطلاب المسجلين */}
               <div>
-                <h3 className="mb-2 text-sm font-black text-slate-700 dark:text-slate-200">آخر الطلاب المسجلين</h3>
+                <h3 className="mb-2 text-sm font-black text-ink">آخر الطلاب المسجلين</h3>
                 {registeredStudents.length === 0 ? (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-400 dark:bg-slate-800">لا يوجد طلاب مسجلون بعد</p>
+                  <p className={emptyBox}>لا يوجد طلاب مسجلون بعد</p>
                 ) : (
                   <div className="space-y-1.5">
                     {registeredStudents.slice(0, 5).map((s, i) => (
-                      <div key={s.email || i} onClick={() => setDetails(s)} className="flex cursor-pointer items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-950/30">
-                        <span className="font-bold text-slate-800 dark:text-slate-100">{s.fullName || 'بدون اسم'}</span>
-                        <span className="text-slate-400">{s.email}</span>
+                      <div key={s.email || i} onClick={() => setDetails(s)} className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-xl bg-aqua-light/30 px-3 py-2 text-xs hover:bg-aqua-light/60">
+                        <span className="font-bold text-ink">{s.fullName || 'بدون اسم'}</span>
+                        <span className="text-ink/60">{s.email}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* ============ منطقة الخطر ============ */}
-              <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/20">
+              {/* منطقة الخطر */}
+              <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-4">
                 <h3 className="mb-1 flex items-center gap-2 text-sm font-black text-rose-600">⚠️ منطقة الخطر</h3>
                 <p className="mb-4 text-[11px] text-rose-500">هذه الإجراءات نهائية ولا يمكن التراجع عنها. سيتم الحذف من قاعدة البيانات السحابية أيضًا.</p>
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => { setDangerAction('students'); setDangerConfirmText(''); setDangerMessage(''); }}
-                    disabled={!onDeleteAllStudents || registeredStudents.length === 0}
-                    className="rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-900"
-                  >
+                  <button type="button" onClick={() => { setDangerAction('students'); setDangerConfirmText(''); setDangerMessage(''); }} disabled={!onDeleteAllStudents || registeredStudents.length === 0} className={dangerBtn}>
                     🗑️ حذف كل الطلاب ({registeredStudents.length})
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setDangerAction('instructors'); setDangerConfirmText(''); setDangerMessage(''); }}
-                    disabled={!onDeleteAllInstructors || registeredInstructors.length === 0}
-                    className="rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-900"
-                  >
+                  <button type="button" onClick={() => { setDangerAction('instructors'); setDangerConfirmText(''); setDangerMessage(''); }} disabled={!onDeleteAllInstructors || registeredInstructors.length === 0} className={dangerBtn}>
                     🗑️ حذف كل المحاضرين ({registeredInstructors.length})
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setDangerAction('requests'); setDangerConfirmText(''); setDangerMessage(''); }}
-                    disabled={!onClearAllPendingRequests || (pendingStudentRows.length + pendingInstructorRows.length === 0)}
-                    className="rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-900"
-                  >
+                  <button type="button" onClick={() => { setDangerAction('requests'); setDangerConfirmText(''); setDangerMessage(''); }} disabled={!onClearAllPendingRequests || (pendingStudentRows.length + pendingInstructorRows.length === 0)} className={dangerBtn}>
                     🗑️ مسح كل الطلبات المعلقة
                   </button>
                 </div>
 
-                {dangerMessage && (
-                  <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold text-emerald-600 dark:bg-slate-900">{dangerMessage}</div>
-                )}
+                {dangerMessage && <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold text-emerald-700">{dangerMessage}</div>}
 
-                {/* صندوق التأكيد */}
                 {dangerAction && (
-                  <div className="mt-4 rounded-xl border-2 border-rose-400 bg-white p-4 dark:bg-slate-900">
+                  <div className="mt-4 rounded-xl border-2 border-rose-400 bg-white p-4">
                     <p className="mb-2 text-xs font-black text-rose-600">
                       هل أنت متأكد؟ هذا الإجراء سيحذف{' '}
                       {dangerAction === 'students' ? 'جميع حسابات الطلاب' : dangerAction === 'instructors' ? 'جميع حسابات المحاضرين' : 'جميع الطلبات المعلقة'}{' '}
                       نهائيًا.
                     </p>
-                    <p className="mb-2 text-[11px] text-slate-500">اكتب كلمة <b>"حذف"</b> بالأسفل للتأكيد:</p>
+                    <p className="mb-2 text-[11px] text-ink/60">اكتب كلمة <b>"حذف"</b> بالأسفل للتأكيد:</p>
                     <input
                       autoFocus
                       type="text"
                       value={dangerConfirmText}
                       onChange={(e) => setDangerConfirmText(e.target.value)}
                       placeholder="اكتب: حذف"
-                      className="mb-3 w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm outline-none focus:border-rose-500 dark:bg-slate-800"
+                      className="mb-3 w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-ink outline-none focus:border-rose-500"
                     />
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={executeDangerAction}
-                        disabled={dangerConfirmText.trim() !== 'حذف' || isDangerLoading}
-                        className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
+                      <button type="button" onClick={executeDangerAction} disabled={dangerConfirmText.trim() !== 'حذف' || isDangerLoading} className="flex-1 cursor-pointer rounded-xl bg-rose-600 py-2.5 text-xs font-black text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50">
                         {isDangerLoading ? 'جارٍ الحذف...' : 'تأكيد الحذف النهائي'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setDangerAction(null); setDangerConfirmText(''); }}
-                        className="rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                      >
+                      <button type="button" onClick={() => { setDangerAction(null); setDangerConfirmText(''); }} className="cursor-pointer rounded-xl bg-aqua-light/60 px-4 py-2.5 text-xs font-bold text-ink hover:bg-aqua-light">
                         إلغاء
                       </button>
                     </div>
@@ -704,27 +633,25 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
             </section>
           )}
 
-          {/* ============ تاب الموافقات ============ */}
+          {/* الموافقات */}
           {tab === 'approvals' && (
             <section className="space-y-6">
               <div>
-                <h3 className="mb-2 text-sm font-black text-amber-600">
-                  طلبات محاضرين تنتظر الموافقة ({pendingInstructorRows.length})
-                </h3>
+                <h3 className="mb-2 text-sm font-black text-aqua-dark">طلبات محاضرين تنتظر الموافقة ({pendingInstructorRows.length})</h3>
                 {pendingInstructorRows.length === 0 ? (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-400 dark:bg-slate-800">لا توجد طلبات محاضرين معلقة</p>
+                  <p className={emptyBox}>لا توجد طلبات محاضرين معلقة</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingInstructorRows.map((instructor, index) => (
-                      <div key={instructor.email || index} onClick={() => setDetails(instructor)} className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:bg-amber-950/20">
+                      <div key={instructor.email || index} onClick={() => setDetails(instructor)} className={pendingCard}>
                         <div>
                           <b className="text-sm">{instructor.fullName || 'بدون اسم'}</b>
-                          <p className="text-xs text-slate-500">{instructor.email}</p>
-                          {instructor.specialization && <p className="text-[11px] text-slate-400">{instructor.specialization}</p>}
+                          <p className="text-xs text-ink/60">{instructor.email}</p>
+                          {instructor.specialization && <p className="text-[11px] text-ink/50">{instructor.specialization}</p>}
                         </div>
                         <div className="flex gap-2">
-                          <button type="button" onClick={(e) => action(e, () => onApproveInstructor?.(instructor.email))} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white">موافقة</button>
-                          <button type="button" onClick={(e) => action(e, () => onRejectInstructor?.(instructor.email))} className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-600">رفض</button>
+                          <button type="button" onClick={(e) => action(e, () => onApproveInstructor?.(instructor.email))} className={approveBtn}>موافقة</button>
+                          <button type="button" onClick={(e) => action(e, () => onRejectInstructor?.(instructor.email))} className={rejectBtn}>رفض</button>
                         </div>
                       </div>
                     ))}
@@ -733,22 +660,20 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
               </div>
 
               <div>
-                <h3 className="mb-2 text-sm font-black text-amber-600">
-                  طلبات طلاب تنتظر الموافقة ({pendingStudentRows.length})
-                </h3>
+                <h3 className="mb-2 text-sm font-black text-aqua-dark">طلبات طلاب تنتظر الموافقة ({pendingStudentRows.length})</h3>
                 {pendingStudentRows.length === 0 ? (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-xs text-slate-400 dark:bg-slate-800">لا توجد طلبات طلاب معلقة</p>
+                  <p className={emptyBox}>لا توجد طلبات طلاب معلقة</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingStudentRows.map((student, index) => (
-                      <div key={student.email || index} onClick={() => setDetails(student)} className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:bg-amber-950/20">
+                      <div key={student.email || index} onClick={() => setDetails(student)} className={pendingCard}>
                         <div>
                           <b className="text-sm">{student.fullName || 'بدون اسم'}</b>
-                          <p className="text-xs text-slate-500">{student.email}</p>
+                          <p className="text-xs text-ink/60">{student.email}</p>
                         </div>
                         <div className="flex gap-2">
-                          <button type="button" onClick={(e) => action(e, () => onApproveStudent?.(student.email))} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white">موافقة</button>
-                          <button type="button" onClick={(e) => action(e, () => onRejectStudent?.(student.email))} className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-600">رفض</button>
+                          <button type="button" onClick={(e) => action(e, () => onApproveStudent?.(student.email))} className={approveBtn}>موافقة</button>
+                          <button type="button" onClick={(e) => action(e, () => onRejectStudent?.(student.email))} className={rejectBtn}>رفض</button>
                         </div>
                       </div>
                     ))}
@@ -758,25 +683,146 @@ export const PlatformOwnerAdminModal: React.FC<Props> = ({
             </section>
           )}
 
-          {tab !== 'requests' && tab !== 'overview' && tab !== 'approvals' && <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tab === 'students' ? 'بحث عن طالب...' : tab === 'instructors' ? 'بحث عن محاضر...' : 'بحث عن كورس...'} className="mb-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-800" />}
+          {tab !== 'requests' && tab !== 'overview' && tab !== 'approvals' && (
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tab === 'students' ? 'بحث عن طالب...' : tab === 'instructors' ? 'بحث عن محاضر...' : 'بحث عن كورس...'}
+              className={`${inputCls} mb-4 rounded-2xl`}
+            />
+          )}
 
-          {tab === 'students' && <section className="space-y-4">
-            {pendingStudentRows.length > 0 && <div className="space-y-2"><h3 className="text-sm font-black text-amber-600">طلبات طلاب معلقة ({pendingStudentRows.length})</h3>{pendingStudentRows.map((student, index) => <div key={student.email || index} onClick={() => setDetails(student)} className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:bg-amber-950/20"><div><b className="text-sm">{student.fullName || 'بدون اسم'}</b><p className="text-xs text-slate-500">{student.email}</p></div><div className="flex gap-2"><button type="button" onClick={(e) => action(e, () => onApproveStudent?.(student.email))} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white">موافقة</button><button type="button" onClick={(e) => action(e, () => onRejectStudent?.(student.email))} className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-600">رفض</button></div></div>)}</div>}
-            {students.length === 0 ? <p className="py-10 text-center text-sm text-slate-400">لا يوجد طلاب</p> : students.map((student, index) => <div key={student.email || index} onClick={() => openDetails(student, () => onViewStudentDetails?.(student))} className="mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:bg-indigo-950/30"><div><b className="text-sm text-slate-900 dark:text-white">{student.fullName || 'بدون اسم'}</b><p className="text-xs text-slate-500">{student.email}</p></div><div className="flex gap-1"><button type="button" title="الشهادات" onClick={(e) => action(e, () => onViewStudentCertificates?.(student))} className="rounded-xl px-2 py-1 text-amber-500">🎖️</button><button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteStudent?.(student.email))} className="rounded-xl px-2 py-1 text-rose-500">🗑️</button></div></div>)}
-          </section>}
+          {/* الطلاب */}
+          {tab === 'students' && (
+            <section className="space-y-4">
+              {pendingStudentRows.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-black text-aqua-dark">طلبات طلاب معلقة ({pendingStudentRows.length})</h3>
+                  {pendingStudentRows.map((student, index) => (
+                    <div key={student.email || index} onClick={() => setDetails(student)} className={pendingCard}>
+                      <div>
+                        <b className="text-sm">{student.fullName || 'بدون اسم'}</b>
+                        <p className="text-xs text-ink/60">{student.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={(e) => action(e, () => onApproveStudent?.(student.email))} className={approveBtn}>موافقة</button>
+                        <button type="button" onClick={(e) => action(e, () => onRejectStudent?.(student.email))} className={rejectBtn}>رفض</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {students.length === 0 ? (
+                <p className="py-10 text-center text-sm text-ink/50">لا يوجد طلاب</p>
+              ) : (
+                students.map((student, index) => (
+                  <div key={student.email || index} onClick={() => openDetails(student, () => onViewStudentDetails?.(student))} className={rowCard}>
+                    <div className="min-w-0">
+                      <b className="text-sm text-ink">{student.fullName || 'بدون اسم'}</b>
+                      <p className="truncate text-xs text-ink/60">{student.email}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button type="button" title="الشهادات" onClick={(e) => action(e, () => onViewStudentCertificates?.(student))} className="cursor-pointer rounded-xl px-2 py-1 text-aqua-dark">🎖️</button>
+                      <button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteStudent?.(student.email))} className="cursor-pointer rounded-xl px-2 py-1 text-rose-500">🗑️</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
 
-          {tab === 'instructors' && <section className="space-y-4">
-            {pendingInstructorRows.length > 0 && <div className="space-y-2"><h3 className="text-sm font-black text-amber-600">طلبات محاضرين معلقة ({pendingInstructorRows.length})</h3>{pendingInstructorRows.map((instructor, index) => <div key={instructor.email || index} onClick={() => setDetails(instructor)} className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:bg-amber-950/20"><div><b className="text-sm">{instructor.fullName || 'بدون اسم'}</b><p className="text-xs text-slate-500">{instructor.email}</p></div><div className="flex gap-2"><button type="button" onClick={(e) => action(e, () => onApproveInstructor?.(instructor.email))} className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white">موافقة</button><button type="button" onClick={(e) => action(e, () => onRejectInstructor?.(instructor.email))} className="rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-600">رفض</button></div></div>)}</div>}
-            {instructors.length === 0 ? <p className="py-10 text-center text-sm text-slate-400">لا يوجد محاضرون</p> : instructors.map((instructor, index) => <div key={instructor.email || index} onClick={() => setDetails(instructor)} className="mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:bg-indigo-950/30"><div><b className="text-sm text-slate-900 dark:text-white">{instructor.fullName || 'بدون اسم'}</b><p className="text-xs text-slate-500">{instructor.email}</p></div><button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteInstructor?.(instructor.email))} className="rounded-xl px-2 py-1 text-rose-500">🗑️</button></div>)}
-          </section>}
+          {/* المحاضرون */}
+          {tab === 'instructors' && (
+            <section className="space-y-4">
+              {pendingInstructorRows.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-black text-aqua-dark">طلبات محاضرين معلقة ({pendingInstructorRows.length})</h3>
+                  {pendingInstructorRows.map((instructor, index) => (
+                    <div key={instructor.email || index} onClick={() => setDetails(instructor)} className={pendingCard}>
+                      <div>
+                        <b className="text-sm">{instructor.fullName || 'بدون اسم'}</b>
+                        <p className="text-xs text-ink/60">{instructor.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={(e) => action(e, () => onApproveInstructor?.(instructor.email))} className={approveBtn}>موافقة</button>
+                        <button type="button" onClick={(e) => action(e, () => onRejectInstructor?.(instructor.email))} className={rejectBtn}>رفض</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {instructors.length === 0 ? (
+                <p className="py-10 text-center text-sm text-ink/50">لا يوجد محاضرون</p>
+              ) : (
+                instructors.map((instructor, index) => (
+                  <div key={instructor.email || index} onClick={() => setDetails(instructor)} className={rowCard}>
+                    <div className="min-w-0">
+                      <b className="text-sm text-ink">{instructor.fullName || 'بدون اسم'}</b>
+                      <p className="truncate text-xs text-ink/60">{instructor.email}</p>
+                    </div>
+                    <button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteInstructor?.(instructor.email))} className="cursor-pointer rounded-xl px-2 py-1 text-rose-500">🗑️</button>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
 
-          {tab === 'courses' && <section>{courseList.length === 0 ? <p className="py-10 text-center text-sm text-slate-400">لا توجد كورسات</p> : courseList.map((course, index) => <div key={course.id || index} onClick={() => setDetails(course)} className="mb-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-indigo-400 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800/70 dark:hover:bg-indigo-950/30"><div><b className="text-sm text-slate-900 dark:text-white">{course.title || 'بدون عنوان'}</b><p className="text-xs text-slate-500">{course.category || 'عام'}</p></div><button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteCourse?.(course.id))} className="rounded-xl px-2 py-1 text-rose-500">🗑️</button></div>)}</section>}
+          {/* الكورسات */}
+          {tab === 'courses' && (
+            <section>
+              {courseList.length === 0 ? (
+                <p className="py-10 text-center text-sm text-ink/50">لا توجد كورسات</p>
+              ) : (
+                courseList.map((course, index) => (
+                  <div key={course.id || index} onClick={() => setDetails(course)} className={rowCard}>
+                    <div className="min-w-0">
+                      <b className="text-sm text-ink">{course.title || 'بدون عنوان'}</b>
+                      <p className="text-xs text-ink/60">{course.category || 'عام'}</p>
+                    </div>
+                    <button type="button" title="حذف" onClick={(e) => action(e, () => onDeleteCourse?.(course.id))} className="cursor-pointer rounded-xl px-2 py-1 text-rose-500">🗑️</button>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
 
-          {tab === 'requests' && <section className="space-y-2">{requestRows.length === 0 ? <p className="py-10 text-center text-sm text-slate-400">لا توجد طلبات تعديل</p> : requestRows.map((request, index) => <div key={request.id || index} onClick={() => setDetails(request)} className="cursor-pointer rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-indigo-400 dark:border-slate-700 dark:bg-slate-800/70"><b className="text-sm text-slate-900 dark:text-white">{request.courseTitle || 'كورس بدون عنوان'}</b><p className="text-xs text-slate-500">{request.instructorName || ''}</p></div>)}</section>}
+          {/* طلبات التعديل */}
+          {tab === 'requests' && (
+            <section className="space-y-2">
+              {requestRows.length === 0 ? (
+                <p className="py-10 text-center text-sm text-ink/50">لا توجد طلبات تعديل</p>
+              ) : (
+                requestRows.map((request, index) => (
+                  <div key={request.id || index} onClick={() => setDetails(request)} className="cursor-pointer rounded-2xl border border-aqua-mid bg-white p-4 hover:border-aqua-dark hover:bg-aqua-light/30">
+                    <b className="text-sm text-ink">{request.courseTitle || 'كورس بدون عنوان'}</b>
+                    <p className="text-xs text-ink/60">{request.instructorName || ''}</p>
+                  </div>
+                ))
+              )}
+            </section>
+          )}
         </main>
       </div>
 
-      {details && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-4" onClick={() => setDetails(null)}><div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-black text-slate-900 dark:text-white">البيانات الكاملة</h2><button type="button" onClick={() => setDetails(null)} className="rounded-xl bg-slate-100 px-3 py-1 text-slate-500 dark:bg-slate-800">إغلاق</button></div><div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{safeEntries(details).map(([key, value]) => <div key={key} className="rounded-2xl bg-slate-50 p-3 dark:bg-slate-800"><span className="block text-[10px] text-slate-400">{labelFor(key)}</span><span className="mt-1 block break-words text-sm font-bold text-slate-800 dark:text-slate-100">{String(value)}</span></div>)}</div></div></div>}
+      {/* نافذة البيانات الكاملة */}
+      {details && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" onClick={() => setDetails(null)}>
+          <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-aqua-mid bg-white p-5 text-ink shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-black">البيانات الكاملة</h2>
+              <button type="button" onClick={() => setDetails(null)} className="cursor-pointer rounded-xl bg-aqua-light/60 px-3 py-1 text-ink/70 hover:bg-aqua-light">إغلاق</button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {safeEntries(details).map(([key, value]) => (
+                <div key={key} className="rounded-2xl border border-aqua-mid bg-aqua-light/20 p-3">
+                  <span className="block text-[10px] text-ink/50">{labelFor(key)}</span>
+                  <span className="mt-1 block break-words text-sm font-bold text-ink">{String(value)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
