@@ -19,6 +19,9 @@ import { AddUserTypeModal } from './components/AddUserTypeModal';
 import { PlatformOwnerAdminModal } from './components/PlatformOwnerAdminModal';
 import { StudentDetailsModal } from './components/StudentDetailsModal';
 import { LoginModal } from './components/LoginModal';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import {
   subscribeToCourses,
   subscribeToCourseRequests,
@@ -300,6 +303,52 @@ function MainAppContent() {
     return () => unsubProgress();
   }, [studentProfile?.email]);
 
+  // استرجاع الحساب تلقائيًا على أي جهاز: لو فيه جلسة Firebase شغالة،
+  // نجيب بيانات الحساب من Firestore بدل ما نعتمد على اللي متخزن في المتصفح
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user?.email) return;
+      const email = user.email.toLowerCase();
+      const id = encodeURIComponent(email);
+      try {
+        const [instSnap, studSnap] = await Promise.all([
+          getDoc(doc(db, 'instructors', id)),
+          getDoc(doc(db, 'students', id))
+        ]);
+
+        if (instSnap.exists()) {
+          const inst = instSnap.data() as InstructorProfile;
+          if ((inst as any).approvedByAdmin === true) {
+            const profile = {
+              ...inst,
+              email,
+              status: 'approved',
+              isApproved: true,
+              approvedByAdmin: true
+            } as InstructorProfile;
+            setInstructorProfile(profile);
+            localStorage.setItem('edu_instructor_profile', JSON.stringify(profile));
+          }
+        }
+
+        if (studSnap.exists()) {
+          const stud = studSnap.data() as StudentProfile;
+          const profile: StudentProfile = {
+            ...stud,
+            email,
+            status: 'approved',
+            isApproved: true
+          };
+          setStudentProfile(profile);
+          localStorage.setItem('edu_student_profile', JSON.stringify(profile));
+        }
+      } catch (err) {
+        console.warn('Failed to restore account from cloud:', err);
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
   // لما المسؤول يوافق على المحاضر، يتفتح له الاستوديو تلقائيًا
   useEffect(() => {
     if (!instructorProfile || isInstructorApproved(instructorProfile)) return;
@@ -430,7 +479,15 @@ function MainAppContent() {
       setIsRegistrationModalOpen(true);
       return;
     }
-    enrollStudentInCourse(studentProfile, course.id);
+    const alreadyEnrolled = (studentProfile.enrolledCourseIds || []).includes(course.id);
+    if (!alreadyEnrolled) {
+      // الطالب مش مسجّل في الكورس ده: لازم يأكد التسجيل قبل ما يشوف الفيديوهات
+      const ok = window.confirm(
+        `هل تريد التسجيل في كورس "${course.title}"؟\nستظهر لك فيديوهات هذا الكورس بعد التسجيل.`
+      );
+      if (!ok) return;
+      enrollStudentInCourse(studentProfile, course.id);
+    }
     setSelectedCourse(course);
   };
 
@@ -485,22 +542,50 @@ function MainAppContent() {
     setStudentProfile(approvedProfile);
     localStorage.setItem('edu_student_profile', JSON.stringify(approvedProfile));
     setIsLoginModalOpen(false);
-    setActiveTab('catalog');
 
     if (pendingCourseToStart) {
+      // الطالب كان بيحاول يفتح كورس قبل ما يسجّل دخول
+      setActiveTab('catalog');
       setSelectedCourse(pendingCourseToStart);
       setPendingCourseToStart(null);
+    } else {
+      // يفتح صفحة الطالب (لوحة التعلم)
+      setSelectedCourse(null);
+      setActiveTab('dashboard');
     }
   };
 
+  // دخول المحاضر: يفتح له استوديو المحاضر
+  const handleInstructorLoginSuccess = (instructor: InstructorProfile) => {
+    // LoginModal بيتأكد إن المحاضر معتمد قبل ما ينادي الدالة دي
+    const approvedProfile = {
+      ...instructor,
+      status: 'approved',
+      isApproved: true,
+      approvedByAdmin: true
+    } as InstructorProfile;
+
+    setInstructorProfile(approvedProfile);
+    localStorage.setItem('edu_instructor_profile', JSON.stringify(approvedProfile));
+    setIsLoginModalOpen(false);
+    setPendingCourseToStart(null);
+    setSelectedCourse(null);
+    setActiveTab('instructor');
+  };
+
   const handleLogoutStudent = () => {
+    // لازم نخرج من Firebase كمان، وإلا الحساب هيرجع تلقائيًا
+    signOut(auth).catch(console.warn);
     setStudentProfile(null);
+    setInstructorProfile(null);
     localStorage.removeItem('edu_student_profile');
+    localStorage.removeItem('edu_instructor_profile');
     setActiveTab('catalog');
     setSelectedCourse(null);
   };
 
-  const handleSaveInstructorProfile = (profile: InstructorProfile) => {
+  // ✅ تم التعديل: الدالة async وبتستنى الحفظ في Firestore قبل ما المودال يعمل signOut
+  const handleSaveInstructorProfile = async (profile: InstructorProfile) => {
     const email = profile.email?.toLowerCase();
     const existing = extraRegisteredInstructors.find((i) => i.email?.toLowerCase() === email);
     const existingApproved = !!existing && isInstructorApproved(existing);
@@ -511,8 +596,7 @@ function MainAppContent() {
 
     // إيميل محاضر معتمد بالفعل ومش بتاع صاحب الجهاز الحالي -> ممنوع (منع الانتحال)
     if (existingApproved && !isOwnApprovedProfile) {
-      window.alert('هذا البريد الإلكتروني مسجّل بالفعل كمحاضر معتمد.');
-      return { isPending: true };
+      throw new Error('هذا البريد الإلكتروني مسجّل بالفعل كمحاضر معتمد.');
     }
 
     const alreadyApproved = isOwnApprovedProfile;
@@ -521,22 +605,33 @@ function MainAppContent() {
       ? { ...profile, status: 'approved', isApproved: true, approvedByAdmin: true }
       : { ...profile, status: 'pending', isApproved: false, approvedByAdmin: false }) as InstructorProfile;
 
+    // لازم ننتظر الحفظ في السحابة. لو فشل، الخطأ بيطلع للمودال وهو يمسح الحساب ويعرض رسالة
+    await saveInstructorToCloud(finalProfile);
+
     setInstructorProfile(finalProfile);
     localStorage.setItem('edu_instructor_profile', JSON.stringify(finalProfile));
 
-    // الحفظ في السحابة بحالته (pending أو approved) - بيظهر للمسؤول في قسم الموافقات
-    saveInstructorToCloud(finalProfile).catch(console.warn);
+    // يظهر الطلب فورًا في لوحة المسؤول على نفس الجهاز
+    if (!alreadyApproved) {
+      setPendingInstructorRequests((prev) => {
+        const next = [finalProfile, ...prev.filter((p) => p.email?.toLowerCase() !== email)];
+        localStorage.setItem('edu_pending_instructors', JSON.stringify(next));
+        return next;
+      });
+    }
 
-    // اقفل نافذة تسجيل المحاضر بعد الحفظ
-    setIsInstructorRegistrationModalOpen(false);
+    // المودال بيعرض شاشة "تم إرسال طلبك" بنفسه ويقفل بزرار "إغلاق"
     setActiveTab('instructor');
     return { isPending: !alreadyApproved };
   };
 
   // تسجيل خروج المحاضر
   const handleLogoutInstructor = () => {
+    signOut(auth).catch(console.warn);
     setInstructorProfile(null);
+    setStudentProfile(null);
     localStorage.removeItem('edu_instructor_profile');
+    localStorage.removeItem('edu_student_profile');
     setActiveTab('catalog');
     setSelectedCourse(null);
   };
@@ -627,6 +722,19 @@ function MainAppContent() {
     enrolledCourseIds: []
   };
 
+  // مين يقدر يشوف فيديوهات الكورس: الطالب المسجّل فيه، أو المحاضر المعتمد صاحب الكورس
+  const canWatchCourse = (course: Course): boolean => {
+    if ((studentProfile?.enrolledCourseIds || []).includes(course.id)) return true;
+    if (
+      isInstructorApproved(instructorProfile) &&
+      instructorProfile?.fullName &&
+      course.instructor?.name === instructorProfile.fullName
+    ) {
+      return true;
+    }
+    return false;
+  };
+
   // لما أي نافذة تفتح، الصفحة الرئيسية تختفي وتظهر النافذة لوحدها
   const isPageOpen =
     isRegistrationModalOpen ||
@@ -678,7 +786,30 @@ function MainAppContent() {
         />
 
         <main className="w-full pb-10 sm:pb-14">
-          {selectedCourse ? (
+          {selectedCourse && !canWatchCourse(selectedCourse) ? (
+            <div className="mx-auto my-16 max-w-md rounded-3xl border border-aqua-mid bg-white p-7 text-center text-ink shadow-xl">
+              <h2 className="text-xl font-black">هذا الكورس غير مسجّل لك</h2>
+              <p className="mt-2 text-sm text-ink/70">
+                فيديوهات كورس "{selectedCourse.title}" تظهر فقط للطلاب المسجّلين فيه.
+              </p>
+              <div className="mt-6 flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSelectCourseFromCatalog(selectedCourse)}
+                  className="w-full cursor-pointer rounded-xl bg-aqua-dark py-3 font-bold text-white transition hover:bg-ink active:scale-95"
+                >
+                  {studentProfile ? 'سجّلني في هذا الكورس' : 'سجّل حسابك للانضمام'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCourse(null)}
+                  className="w-full cursor-pointer rounded-xl bg-aqua-light/60 py-3 font-bold text-ink transition hover:bg-aqua-light"
+                >
+                  رجوع
+                </button>
+              </div>
+            </div>
+          ) : selectedCourse ? (
             <CoursePlayer
               course={selectedCourse}
               onBack={() => setSelectedCourse(null)}
@@ -795,6 +926,7 @@ function MainAppContent() {
           onClose={() => setIsLoginModalOpen(false)}
           registeredStudents={extraRegisteredStudents || []}
           onLoginSuccess={handleLoginSuccess}
+          onInstructorLoginSuccess={handleInstructorLoginSuccess}
         />
       )}
 
@@ -830,11 +962,45 @@ function MainAppContent() {
             setExtraRegisteredStudents(prev => prev.filter(s => s.email.toLowerCase() !== email.toLowerCase()));
             deleteStudentFromCloud(email);
           }}
-          onApproveInstructor={(email) => {
-            const target = adminPendingInstructors.find(p => p.email.toLowerCase() === email.toLowerCase());
-            if (target) {
-              saveInstructorToCloud({ ...target, status: 'approved', isApproved: true, approvedByAdmin: true } as InstructorProfile);
-              deletePendingInstructorFromCloud(email);
+          onApproveInstructor={async (emailOrObj: any) => {
+            // يقبل إيميل (نص) أو كائن المحاضر، حسب اللي اللوحة بتبعته
+            const rawEmail = typeof emailOrObj === 'string' ? emailOrObj : emailOrObj?.email;
+            if (!rawEmail) {
+              window.alert('تعذر قراءة إيميل المحاضر.');
+              return;
+            }
+            const key = rawEmail.toLowerCase();
+            const target =
+              adminPendingInstructors.find((p) => p.email?.toLowerCase() === key) ||
+              (typeof emailOrObj === 'object' ? (emailOrObj as InstructorProfile) : null);
+            if (!target) {
+              window.alert('لم يتم العثور على طلب هذا المحاضر.');
+              return;
+            }
+
+            const approvedProfile = {
+              ...target,
+              status: 'approved',
+              isApproved: true,
+              approvedByAdmin: true
+            } as InstructorProfile;
+
+            try {
+              await saveInstructorToCloud(approvedProfile);
+
+              // تحديث فوري على الشاشة
+              setExtraRegisteredInstructors((prev) => [
+                approvedProfile,
+                ...prev.filter((i) => i.email?.toLowerCase() !== key)
+              ]);
+              setPendingInstructorRequests((prev) =>
+                prev.filter((i) => i.email?.toLowerCase() !== key)
+              );
+
+              await deletePendingInstructorFromCloud(key).catch(console.warn);
+            } catch (err: any) {
+              console.error('Approve instructor failed:', err);
+              window.alert('فشلت الموافقة: ' + (err?.code || err?.message || 'خطأ غير معروف'));
             }
           }}
           onRejectInstructor={(email) => {
@@ -901,13 +1067,7 @@ function MainAppContent() {
           onSelectCourse={(courseId: string) => {
             const course = courses.find((c) => c.id === courseId);
             if (course) {
-              if (studentProfile) {
-                enrollStudentInCourse(studentProfile, course.id);
-                setSelectedCourse(course);
-              } else {
-                setPendingCourseToStart(course);
-                setIsRegistrationModalOpen(true);
-              }
+              handleSelectCourseFromCatalog(course);
               setIsAiTutorOpen(false);
             }
           }}

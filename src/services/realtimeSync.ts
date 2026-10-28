@@ -19,9 +19,19 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+let errorShown = false;
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errMessage = error instanceof Error ? error.message : String(error);
+  const code = (error as any)?.code || '';
   console.warn(`[Firestore Realtime ${operationType} at ${path}]:`, errMessage);
+
+  // يظهر مرة واحدة بس عشان مايزعجش (للتجربة فقط - شيله بعد ما تعرف السبب)
+  if (!errorShown && operationType !== OperationType.GET) {
+    errorShown = true;
+    window.alert(
+      `خطأ في قاعدة البيانات\nالعملية: ${operationType}\nالمسار: ${path}\nالكود: ${code}\n${errMessage}`
+    );
+  }
 }
 
 // Test initial connection as required by Firebase skill
@@ -320,12 +330,21 @@ export async function deletePendingInstructorFromCloud(email: string): Promise<v
 }
 
 /**
- * Save a registered instructor to Firestore
+ * Save an instructor to Firestore.
+ * الحالة بتتحدد من approvedByAdmin بس (مش بتتفرض معتمد).
+ *  - approvedByAdmin === true  -> معتمد
+ *  - غير كده                    -> قيد المراجعة (pending)
  */
 export async function saveInstructorToCloud(instructor: InstructorProfile): Promise<void> {
   try {
     const safeDocId = encodeURIComponent(instructor.email.toLowerCase());
-    await setDoc(doc(db, 'instructors', safeDocId), { ...instructor, isApproved: true, status: 'approved' });
+    const approved = (instructor as any).approvedByAdmin === true;
+    await setDoc(doc(db, 'instructors', safeDocId), {
+      ...instructor,
+      isApproved: approved,
+      status: approved ? 'approved' : 'pending',
+      approvedByAdmin: approved,
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'instructors');
     throw error;
